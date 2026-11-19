@@ -15,7 +15,7 @@ contra un pórtico de prueba y la copia de un edificio real.
 *English:* MCP server for Autodesk Robot Structural Analysis (Windows, COM API). It lets Claude
 read the open model and its results, run Ecuadorian seismic code checks (NEC-SE-DS), size
 reinforcement per ACI 318-19 and make guarded edits (every write is a dry run first). Status:
-in testing but working. Tool descriptions and messages are in Spanish. MIT license.
+in testing but working. Tool descriptions and messages are in Spanish. Apache-2.0 license.
 
 ## Instalación
 
