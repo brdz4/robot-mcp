@@ -18,9 +18,9 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, ConfigDict, Field
 
-from results import MAX_READS, _cases, _modal_case, _results
-from robot_com import Session, num, on_robot
-from schema import READ_ONLY, Cases
+from .results import MAX_READS, _cases, _modal_case, _results
+from .robot_com import Session, num, on_robot
+from .schema import READ_ONLY, Cases
 
 LEVEL_TOLERANCE_M = 0.01
 NODES_PER_LINE = 3  # nudos leídos por línea de pórtico (bajo diafragma rígido todos valen lo mismo)

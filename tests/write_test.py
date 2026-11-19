@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 import clr  # noqa: E402
 from mcp import Client, StdioServerParameters  # noqa: E402
 
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 from dialog_watch import DialogWatch  # noqa: E402
 
 clr.AddReference(rc.interop_path())
@@ -66,7 +66,7 @@ async def main() -> int:  # noqa: C901
         if os.path.exists(leftover):
             os.remove(leftover)
 
-    params = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT))
+    params = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT))
     async with Client(params) as client:
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
         writers = [n for n, t in tools.items() if not getattr(t.annotations, "read_only_hint", True)]

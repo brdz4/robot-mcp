@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 import clr  # noqa: E402
 from mcp import Client, StdioServerParameters  # noqa: E402
 
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 
 clr.AddReference(rc.interop_path())
 import RobotOM as om  # type: ignore[import-not-found]  # noqa: E402
@@ -74,7 +74,7 @@ async def main() -> int:
     while rc.robot_starting():
         time.sleep(2)
 
-    params = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT), env={"ROBOT_MCP_READ_ONLY": "1"})
+    params = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT), env={"ROBOT_MCP_READ_ONLY": "1"})
     async with Client(params) as client:
         ok, out = await call(client, "robot_list_panels", {})
         calc = out["items"][0].get("calc_model") if ok and out["items"] else out
@@ -108,7 +108,7 @@ async def main() -> int:
         check(ok and abs(total - 400.0) < 0.5, f"reacción vertical del caso 2 = {total} kN (esperado 400: la losa reparte su carga a las vigas)")
 
     # Escritura sobre un caso con cargas generadas: la cuenta de comprobación ignora las de Robot
-    writer = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT), env={})
+    writer = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT), env={})
     async with Client(writer) as client:
         load = {"case": 2, "loads": [{"type": "node_force", "nodes": "9", "fz_kn": -1}], "dry_run": False, "discard_results": True}
         ok, out = await call(client, "robot_add_loads", load)

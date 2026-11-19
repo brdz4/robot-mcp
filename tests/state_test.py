@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 import clr  # noqa: E402
 from mcp import Client, StdioServerParameters  # noqa: E402
 
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 from dialog_watch import DialogWatch  # noqa: E402
 
 clr.AddReference(rc.interop_path())
@@ -81,7 +81,7 @@ async def main() -> int:
     while rc.robot_starting():  # el servidor no conecta con un Robot recién abierto
         time.sleep(2)
 
-    params = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT))
+    params = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT))
     async with Client(params) as client:
         print("== 1. sin resultados")
         ok, health = await call(client, "robot_health")

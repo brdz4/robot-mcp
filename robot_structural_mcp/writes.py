@@ -22,7 +22,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, ConfigDict, Field
 
-from robot_com import (
+from .robot_com import (
     Session,
     canonical_selection,
     enum_name,
@@ -34,7 +34,7 @@ from robot_com import (
     project_labels,
     section_item,
 )
-from schema import OVERWRITE, WRITE, DiscardResults, DryRun
+from .schema import OVERWRITE, WRITE, DiscardResults, DryRun
 
 NATURES = {
     "PERMANENT": "I_CN_PERMANENT",

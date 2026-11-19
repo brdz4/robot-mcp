@@ -16,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from mcp.server.mcpserver.exceptions import ToolError  # noqa: E402
 
-import design  # noqa: E402
-import results  # noqa: E402
-import robot_com as rc  # noqa: E402
-import writes  # noqa: E402
+from robot_structural_mcp import design  # noqa: E402
+from robot_structural_mcp import results  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
+from robot_structural_mcp import writes  # noqa: E402
 
 
 def write_marker(pid: int) -> None:

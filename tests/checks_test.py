@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 import clr  # noqa: E402
 from mcp import Client, StdioServerParameters  # noqa: E402
 
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 
 clr.AddReference(rc.interop_path())
 import RobotOM as om  # type: ignore[import-not-found]  # noqa: E402
@@ -54,7 +54,7 @@ async def call(client: Client, name: str, args: dict | None = None) -> tuple[boo
 
 
 async def main() -> int:  # noqa: C901
-    import checks as nec
+    from robot_structural_mcp import checks as nec
 
     print("== funciones puras")
     check(nec.interior_deviation([(0, 10.0), (5, 15.0), (10, 20.0)]) < 1e-9, "variación lineal entre bordes: desviación 0 (diafragma rígido)")
@@ -90,7 +90,7 @@ async def main() -> int:  # noqa: C901
         time.sleep(2)
 
     params = StdioServerParameters(
-        command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT), env={"ROBOT_MCP_READ_ONLY": "1"}
+        command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT), env={"ROBOT_MCP_READ_ONLY": "1"}
     )
     async with Client(params) as client:
         tools = [t.name for t in (await client.list_tools()).tools]

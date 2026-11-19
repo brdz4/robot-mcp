@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "robot-structural-mcp"
+version = "0.1.0"
+description = "MCP server for Autodesk Robot Structural Analysis: model, results, NEC-15 checks and ACI 318 reinforcement"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "brdz4" }]
+keywords = ["mcp", "robot structural analysis", "autodesk", "structural engineering", "aci 318", "nec"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["mcp>=2.3,<3", "pythonnet>=3.0.3"]
+
+[project.urls]
+Repository = "https://github.com/brdz4/robot-mcp"
+Issues = "https://github.com/brdz4/robot-mcp/issues"
+
+[project.scripts]
+robot-structural-mcp = "robot_structural_mcp.server:main"
+
+[tool.hatch.build.targets.sdist]
+include = ["robot_structural_mcp", "tests", "README.md", "LICENSE", "server.json"]

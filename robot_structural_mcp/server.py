@@ -17,15 +17,15 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
-import checks
-import design
-import results
-import robot_com as rc
-import writes
-from robot_com import Session, canonical_selection, enum_name, num, on_robot, page, window
-from robot_com import generated_records as _generated_records
-from robot_com import project_labels as _labels
-from schema import READ_ONLY, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
+from . import checks
+from . import design
+from . import results
+from . import robot_com as rc
+from . import writes
+from .robot_com import Session, canonical_selection, enum_name, num, on_robot, page, window
+from .robot_com import generated_records as _generated_records
+from .robot_com import project_labels as _labels
+from .schema import READ_ONLY, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
@@ -666,5 +666,9 @@ design.register(mcp)
 if not rc.READ_ONLY:  # ROBOT_MCP_READ_ONLY=1: sin herramientas de escritura, cálculo ni guardado
     writes.register(mcp)
 
-if __name__ == "__main__":
+def main() -> None:
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -17,9 +17,9 @@ from typing import Annotated, Any
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
-from results import _check_budget, _cases, _results
-from robot_com import Session, bar_selection, enum_name, num, on_robot, page, section_item, window
-from schema import READ_ONLY, Cases, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
+from .results import _check_budget, _cases, _results
+from .robot_com import Session, bar_selection, enum_name, num, on_robot, page, section_item, window
+from .schema import READ_ONLY, Cases, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
 
 ES = 200_000.0  # MPa
 EPS_CU = 0.003

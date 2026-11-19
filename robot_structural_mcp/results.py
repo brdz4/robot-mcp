@@ -12,10 +12,10 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
-from robot_com import Session, enum_name, num, on_robot, page, parse_selection, project_labels, window
-from robot_com import READ_ONLY as READ_ONLY_MODE
-from robot_com import bar_selection
-from schema import READ_ONLY, Cases, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
+from .robot_com import Session, enum_name, num, on_robot, page, parse_selection, project_labels, window
+from .robot_com import READ_ONLY as READ_ONLY_MODE
+from .robot_com import bar_selection
+from .schema import READ_ONLY, Cases, Limit, Offset, SectionFilter, Selection, StoreyFilter, StructuralTypeFilter
 
 MAX_CASES = 30
 MAX_READS = 600  # lecturas de resultado por llamada (~10 ms cada una por COM)

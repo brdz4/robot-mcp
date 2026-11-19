@@ -58,7 +58,7 @@ CALLS: list[tuple[str, dict]] = [
 
 
 async def main() -> int:
-    params = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT))
+    params = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT))
     failures = 0
     async with Client(params) as client:
         tools = (await client.list_tools()).tools

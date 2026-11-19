@@ -1,4 +1,6 @@
-# robot_mcp
+# robot-structural-mcp
+
+<!-- mcp-name: io.github.brdz4/robot-mcp -->
 
 Servidor MCP para Autodesk Robot Structural Analysis. Se conecta por COM (RobotOM) al Robot
 que tengas abierto y deja que Claude lea el modelo activo y sus resultados, y que lo modifique
@@ -16,26 +18,37 @@ contra un pórtico de prueba y la copia de un edificio real.
 read the open model and its results, run Ecuadorian seismic code checks (NEC-SE-DS), size
 reinforcement per ACI 318-19 and make guarded edits (every write is a dry run first). Status:
 in testing but working. Tool descriptions and messages are in Spanish. Apache-2.0 license.
+Contributions welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Instalación
 
-```bash
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-Registro en Claude Code (`.mcp.json` en la carpeta del proyecto):
+Requiere Windows, Robot Structural Analysis instalado con licencia y Python 3.12 o superior.
+La forma más simple es dejar que `uv` lo instale desde PyPI al registrarlo
+(`.mcp.json` en la carpeta del proyecto de Claude Code):
 
 ```json
 {
   "mcpServers": {
     "robot": {
-      "command": "C:/ruta/robot_mcp/.venv/Scripts/python.exe",
-      "args": ["C:/ruta/robot_mcp/server.py"]
+      "command": "uvx",
+      "args": ["robot-structural-mcp"]
     }
   }
 }
 ```
+
+Sin `uv`: `pip install robot-structural-mcp` y usa `"command": "robot-structural-mcp"`.
+
+Desde el código, para desarrollar:
+
+```bash
+git clone https://github.com/brdz4/robot-mcp.git
+cd robot-mcp
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -e .
+```
+
+y en `.mcp.json`, `"command": "C:/ruta/robot-mcp/.venv/Scripts/robot-structural-mcp.exe"`.
 
 ## Herramientas
 

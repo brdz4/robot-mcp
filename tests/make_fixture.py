@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import clr  # noqa: E402
 
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 
 clr.AddReference(rc.interop_path())
 import RobotOM as om  # type: ignore[import-not-found]  # noqa: E402

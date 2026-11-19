@@ -22,8 +22,8 @@ sys.path.insert(0, str(ROOT))
 import clr  # noqa: E402
 from mcp import Client, StdioServerParameters  # noqa: E402
 
-import design  # noqa: E402
-import robot_com as rc  # noqa: E402
+from robot_structural_mcp import design  # noqa: E402
+from robot_structural_mcp import robot_com as rc  # noqa: E402
 
 clr.AddReference(rc.interop_path())
 import RobotOM as om  # type: ignore[import-not-found]  # noqa: E402
@@ -58,7 +58,7 @@ async def main() -> int:  # noqa: C901
     while rc.robot_starting():
         time.sleep(2)
 
-    params = StdioServerParameters(command=sys.executable, args=[str(ROOT / "server.py")], cwd=str(ROOT), env={})
+    params = StdioServerParameters(command=sys.executable, args=["-m", "robot_structural_mcp.server"], cwd=str(ROOT), env={})
     async with Client(params) as client:
         ok, out = await call(client, "robot_run_calculation", {})
         check(ok and out["calculation"] == "COMPLETED", f"cálculo del pórtico con losa: {out}")
