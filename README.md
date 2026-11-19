@@ -2,10 +2,20 @@
 
 Servidor MCP para Autodesk Robot Structural Analysis. Se conecta por COM (RobotOM) al Robot
 que tengas abierto y deja que Claude lea el modelo activo y sus resultados, y que lo modifique
-con ensayo previo (crear y asignar; no borra).
+con ensayo previo (crear, asignar y, con permiso expreso, borrar).
+
+> **Estado: en pruebas, pero funciona.** Lo he probado en copias de proyectos reales con NEC-15
+> y ACI 318-19 y pasan todas sus pruebas (162 comprobaciones, 156 de ellas contra Robot), pero
+> aún no se ha usado fuera de mi equipo. Trabaja siempre sobre una copia del modelo, revisa el ensayo (`dry_run`) antes de
+> aplicar y comprueba los resultados de diseño a mano. Se agradecen issues y PR.
 
 Probado con Robot 2026 (39.0.1) en español, Python 3.12, `mcp` 2.3.0 y `pythonnet` 3.2.1,
 contra un pórtico de prueba y la copia de un edificio real.
+
+*English:* MCP server for Autodesk Robot Structural Analysis (Windows, COM API). It lets Claude
+read the open model and its results, run Ecuadorian seismic code checks (NEC-SE-DS), size
+reinforcement per ACI 318-19 and make guarded edits (every write is a dry run first). Status:
+in testing but working. Tool descriptions and messages are in Spanish. MIT license.
 
 ## Instalación
 
