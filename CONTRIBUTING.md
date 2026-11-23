@@ -5,6 +5,14 @@ por COM, así que casi todo cambio necesita Robot instalado (Windows) para proba
 
 *English:* Issues and pull requests in English are welcome too. You need Windows and a licensed
 Robot Structural Analysis to run most tests; `tests/offline_test.py` runs without Robot.
+Code checks are limited to standards used in the Americas (NEC, ACI, ASCE, NSR…).
+
+## Alcance
+
+Las verificaciones normativas se limitan a normas de América (NEC, ACI, ASCE, NSR…), que son las
+que el mantenedor usa y puede validar. Para otras normas (Eurocódigo, RPA…), haz un fork: la
+licencia lo permite. Lo que no depende de la norma (lectura del modelo, resultados, API de Robot)
+es bienvenido venga de donde venga.
 
 ## Preparar el entorno
 
@@ -40,7 +48,7 @@ abierto. El README explica cada una.
 - Definir espectros y casos sísmicos, espesores y modelos de cálculo de panel.
 - Diseño por capacidad: cortante por momentos probables y columna fuerte-viga débil (ACI 18).
 - Secciones prefabricadas (dobles T) en el cálculo de cuantías.
-- Otras normas (ASCE 7, Eurocódigo, NSR-10…) como verificaciones nuevas.
+- Otras normas de América (ASCE 7, NSR-10…) como verificaciones nuevas.
 - Robot en inglés u otros idiomas: probar y corregir la sintaxis de selecciones.
 
 Abre un issue antes de un cambio grande para acordar el enfoque.
