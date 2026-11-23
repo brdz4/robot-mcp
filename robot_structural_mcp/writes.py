@@ -275,6 +275,39 @@ def _usage(s: Session, obj_type: Any, label_type: Any, text: str) -> dict[str, i
     return usage
 
 
+GEO_TOL = 1e-3  # m
+
+
+def _bar_ends(s: Session, bars: Any) -> dict[int, tuple[tuple[float, float, float], tuple[float, float, float]]]:
+    """{barra: (inicio, fin)} en m para una selección de barras; lee cada nudo una sola vez."""
+    om, nodes, server = s.om, s.structure.Nodes, s.structure.Bars
+    points: dict[int, tuple[float, float, float]] = {}
+    out = {}
+    for i in range(1, bars.Count + 1):
+        bar = om.IRobotBar(server.Get(bars.Get(i)))
+        ends = []
+        for n in (int(bar.StartNode), int(bar.EndNode)):
+            if n not in points:
+                node = om.IRobotNode(nodes.Get(n))
+                points[n] = (float(node.X), float(node.Y), float(node.Z))
+            ends.append(points[n])
+        out[int(bar.Number)] = (ends[0], ends[1])
+    return out
+
+
+def _axis_labels(count: int, style: str) -> list[str]:
+    if style == "numbers":
+        return [str(i) for i in range(1, count + 1)]
+    labels = []
+    for i in range(count):  # A..Z, AA, AB...
+        text, i = "", i + 1
+        while i:
+            i, rest = divmod(i - 1, 26)
+            text = chr(65 + rest) + text
+        labels.append(text)
+    return labels
+
+
 def _case_table(s: Session) -> dict[int, tuple[str, str]]:
     col = s.structure.Cases.GetAll()
     table = {}
@@ -1161,5 +1194,208 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
             out = _execute(s, dry_run=dry_run, discard_results=False, plan=plan, apply=apply, affects_results=False)
             out.pop("invalidates_results", None)
             return out
+
+        return await on_robot(work)
+
+    # ---------- pisos, ejes y tipo estructural ----------
+
+    @mcp.tool(name="robot_create_storeys", title="Crear pisos y asignarles las barras", annotations=OVERWRITE)
+    async def robot_create_storeys(
+        levels: Annotated[list[float], Field(min_length=1, max_length=100, description="Nivel superior de cada piso en m, de abajo arriba, p. ej. [3.1, 6.2, 9.3].")],
+        base_level: Annotated[float, Field(description="Nivel inferior del primer piso, en m.")] = 0.0,
+        names: Annotated[list[str] | None, Field(description="Nombre de cada piso, en el mismo orden. Omitir = 'Piso 1', 'Piso 2'…")] = None,
+        replace: Annotated[bool, Field(description="true = borrar antes los pisos existentes (Robot crea uno por defecto en los modelos nuevos).")] = False,
+        dry_run: DryRun = True,
+        discard_results: DiscardResults = False,
+    ) -> dict[str, Any]:
+        """Crea los pisos (storeys) y asigna a cada uno sus barras.
+
+        Cada barra va al piso cuyo tramo (nivel inferior, nivel superior] contiene su extremo más
+        alto: las columnas que nacen en el piso y las vigas de su nivel superior (las de cubierta,
+        al último piso; las que están en el nivel base o por debajo, al primero). Las barras por
+        encima del último nivel quedan sin piso y se informan. La asignación es fija (no
+        automática), así que se repite esta herramienta si cambia la geometría. Los paneles no se
+        asignan. Devuelve {dry_run, applied, …, existing, storeys:[{name, bottom_m, top_m,
+        height_m, bars_count}], unassigned_bars, next_step? | results_status_after}.
+        """
+        names_in = names or [f"Piso {i}" for i in range(1, len(levels) + 1)]
+        if len(names_in) != len(levels):
+            raise ToolError(f"Hay {len(levels)} niveles y {len(names_in)} nombres; deben coincidir.")
+        if len({n.strip() for n in names_in}) != len(names_in) or any(not n.strip() for n in names_in):
+            raise ToolError("Los nombres de piso deben ser únicos y no vacíos.")
+        tops = [float(v) for v in levels]
+        bottoms = [float(base_level), *tops[:-1]]
+        if any(t - b < 0.1 for b, t in zip(bottoms, tops)):
+            raise ToolError("Los niveles deben ir de abajo arriba, por encima de base_level y separados al menos 0.1 m.")
+
+        def work(s: Session) -> dict[str, Any]:
+            om, manager = s.om, s.structure.Storeys
+            existing = s.storey_names()
+            if existing and not replace:
+                raise ToolError(f"El modelo ya tiene los pisos {existing}. Repite con replace=true para sustituirlos.")
+            bar_type = om.IRobotObjectType.I_OT_BAR
+            groups: list[list[int]] = [[] for _ in tops]
+            unassigned = []
+            for number, (a, b) in _bar_ends(s, s.select(bar_type)).items():
+                z = max(a[2], b[2])
+                index = 0 if z <= bottoms[0] + GEO_TOL else next((i for i, t in enumerate(tops) if z <= t + GEO_TOL), None)
+                (groups[index] if index is not None else unassigned).append(number)
+
+            def objects(numbers: list[int]) -> str:
+                chosen = s.structure.Selections.Create(bar_type)
+                for n in numbers:
+                    chosen.AddOne(n)
+                return str(chosen.ToText())
+
+            plan = {
+                "existing": existing,
+                "storeys": [
+                    {"name": n, "bottom_m": num(b, 4), "top_m": num(t, 4), "height_m": num(t - b, 4), "bars_count": len(g)}
+                    for n, b, t, g in zip(names_in, bottoms, tops, groups)
+                ],
+                "unassigned_bars": canonical_selection(objects(unassigned)) if unassigned else "",
+            }
+
+            def apply() -> dict[str, Any]:
+                manager.DeleteAll()
+                for name, bottom, top, group in zip(names_in, bottoms, tops, groups):
+                    text = objects(group)
+                    manager.CreateEx(name, bottom, top - bottom, text, 0)
+                    storey = manager.Get(manager.Find(name))
+                    storey.AutomaticSelection = False
+                    storey.Objects = text
+                for i, (name, top, group) in enumerate(zip(names_in, tops, groups), 1):
+                    storey = manager.Get(i)
+                    back = s.structure.Selections.Create(bar_type)
+                    back.FromText(str(storey.Objects))
+                    ok = str(storey.Name) == name and abs(float(storey.TopLevel) - top) < GEO_TOL
+                    if not ok or {back.Get(k) for k in range(1, back.Count + 1)} != set(group):
+                        raise ToolError(f"Robot no guardó el piso '{name}' como se pidió; revísalo en Robot.")
+                if manager.Count != len(names_in):
+                    raise ToolError(f"Robot tiene {manager.Count} pisos en vez de {len(names_in)}; revísalo.")
+                return {}
+
+            return _execute(s, dry_run=dry_run, discard_results=discard_results, plan=plan, apply=apply, affects_results=False)
+
+        return await on_robot(work)
+
+    @mcp.tool(name="robot_create_axis_grid", title="Trazar ejes estructurales", annotations=OVERWRITE)
+    async def robot_create_axis_grid(
+        x: Annotated[list[float], Field(min_length=2, max_length=100, description="Posiciones de los ejes paralelos a Y, en m, de menor a mayor, p. ej. [0, 5, 10].")],
+        y: Annotated[list[float], Field(min_length=2, max_length=100, description="Posiciones de los ejes paralelos a X, en m, de menor a mayor.")],
+        name: Annotated[str, Field(min_length=1, max_length=40, description="Nombre de la malla de ejes.")] = "Ejes",
+        x_labels: Annotated[Literal["numbers", "letters"], Field(description="Rótulos de los ejes en X: 1, 2, 3… o A, B, C…")] = "numbers",
+        y_labels: Annotated[Literal["numbers", "letters"], Field(description="Rótulos de los ejes en Y.")] = "letters",
+        replace: Annotated[bool, Field(description="true = sustituir una malla que ya tenga ese nombre.")] = False,
+        dry_run: DryRun = True,
+    ) -> dict[str, Any]:
+        """Traza una malla cartesiana de ejes (líneas de construcción) y la activa.
+
+        En Z usa los niveles de los pisos (robot_create_storeys). Los ejes no cambian el análisis.
+        Devuelve {dry_run, applied, …, grid:{name, x:[{label, position_m}], y:[…]}, replaces,
+        next_step?}.
+        """
+        for label, values in (("x", x), ("y", y)):
+            if any(b - a < GEO_TOL for a, b in zip(values, values[1:])):
+                raise ToolError(f"Las posiciones de '{label}' deben ir de menor a mayor y sin repetir.")
+        wanted = {
+            axis: [{"label": lab, "position_m": num(p, 4)} for lab, p in zip(_axis_labels(len(values), style), values)]
+            for axis, values, style in (("x", x, x_labels), ("y", y, y_labels))
+        }
+
+        def work(s: Session) -> dict[str, Any]:
+            om, manager = s.om, s.project.AxisMngr
+            found = int(manager.FindByName(name))
+            if found > 0 and not replace:
+                raise ToolError(f"Ya existe la malla de ejes '{name}'. Usa otro nombre o replace=true.")
+            plan = {"grid": {"name": name, **wanted}, "replaces": found > 0}
+
+            def fill(sequence: Any, values: list[float], labels: list[dict[str, Any]]) -> None:
+                sequence.StartPosition = float(values[0])
+                runs: list[list[float]] = []  # [distancia, repeticiones]
+                for a, b in zip(values, values[1:]):
+                    d = round(b - a, 6)
+                    if runs and abs(runs[-1][0] - d) < 1e-6:
+                        runs[-1][1] += 1
+                    else:
+                        runs.append([d, 1])
+                for d, times in runs:
+                    sequence.AddSequence(d, int(times))
+                for i, item in enumerate(labels, 1):
+                    sequence.SetAxisLabel(i, item["label"])
+
+            def apply() -> dict[str, Any]:
+                if found > 0:
+                    manager.Delete(found)
+                grid = om.IRobotStructuralAxisGridCartesian(manager.Create(om.IRobotStructuralAxisGridType.I_SAGT_CARTESIAN, name))
+                fill(grid.X, x, wanted["x"])
+                fill(grid.Y, y, wanted["y"])
+                grid.IncludeStoreysInZ = True
+                grid.Save()
+                index = int(manager.FindByName(name))
+                manager.Activate(index, True)
+                back = om.IRobotStructuralAxisGridCartesian(manager.Get(index))
+                for axis, sequence in (("x", back.X), ("y", back.Y)):
+                    got = [sequence.GetAxis(i, "", 0.0, False) for i in range(1, sequence.AxisCount + 1)]
+                    read = [{"label": str(lab), "position_m": num(pos, 4)} for _, lab, pos, _ in got]
+                    if read != wanted[axis]:
+                        raise ToolError(f"Robot guardó los ejes en {axis.upper()} distintos de lo pedido: {read}.")
+                return {"active": bool(manager.IsActive(index))}
+
+            return _execute(s, dry_run=dry_run, discard_results=False, plan=plan, apply=apply, affects_results=False)
+
+        return await on_robot(work)
+
+    @mcp.tool(name="robot_set_structural_type", title="Convertir barras en vigas o columnas", annotations=OVERWRITE)
+    async def robot_set_structural_type(
+        selection: Annotated[str, Field(description="Barras a modificar: '1to80', '81 82 83'. Obligatorio.")],
+        structural_type: Annotated[
+            Literal["AUTO", "COLUMN", "BEAM"],
+            Field(description="COLUMN, BEAM, o AUTO = por geometría: vertical, columna; el resto (horizontal o inclinada), viga."),
+        ] = "AUTO",
+        dry_run: DryRun = True,
+    ) -> dict[str, Any]:
+        """Asigna el tipo estructural (objeto constructivo) de las barras: columna o viga.
+
+        Las barras creadas por la API quedan como barra genérica; con el tipo, Robot las trata como
+        columnas o vigas y los filtros structural_type de este servidor las encuentran. No cambia el
+        análisis. Devuelve {dry_run, applied, …, bars_count, not_found, current:{tipo: n},
+        to_set:{COLUMN: n, BEAM: n}, bars_changing, next_step?}.
+        """
+
+        def work(s: Session) -> dict[str, Any]:
+            om, server = s.om, s.structure.Bars
+            chosen, count, not_found = _resolve(s, om.IRobotObjectType.I_OT_BAR, selection, "barras")
+            current: dict[str, int] = {}
+            target: dict[int, str] = {}
+            ends = _bar_ends(s, chosen) if structural_type == "AUTO" else {}
+            changing = 0
+            for i in range(1, chosen.Count + 1):
+                number = chosen.Get(i)
+                now = enum_name(server.GetStructuralType(number))
+                current[now] = current.get(now, 0) + 1
+                if structural_type == "AUTO":
+                    a, b = ends[number]
+                    new = "COLUMN" if math.hypot(b[0] - a[0], b[1] - a[1]) < GEO_TOL else "BEAM"
+                else:
+                    new = structural_type
+                target[number] = new
+                changing += now != new
+            to_set = {t: sum(1 for v in target.values() if v == t) for t in ("COLUMN", "BEAM") if t in target.values()}
+            plan = {"bars_count": count, "not_found": not_found, "current": current, "to_set": to_set, "bars_changing": changing}
+
+            def apply() -> dict[str, Any]:
+                for kind in to_set:
+                    group = s.structure.Selections.Create(om.IRobotObjectType.I_OT_BAR)
+                    for number, t in target.items():
+                        if t == kind:
+                            group.AddOne(number)
+                    server.SetStructuralType(str(group.ToText()), getattr(om.IRobotObjectStructuralType, f"I_OST_{kind}"))
+                wrong = [n for n, t in target.items() if enum_name(server.GetStructuralType(n)) != t]
+                if wrong:
+                    raise ToolError(f"Robot no cambió el tipo de {len(wrong)} barras (p. ej. {wrong[:5]}); revísalo en Robot.")
+                return {}
+
+            return _execute(s, dry_run=dry_run, discard_results=False, plan=plan, apply=apply, affects_results=False)
 
         return await on_robot(work)

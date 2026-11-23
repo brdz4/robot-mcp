@@ -71,7 +71,7 @@ async def main() -> int:  # noqa: C901
         tools = {tool.name: tool for tool in (await client.list_tools()).tools}
         writers = [n for n, t in tools.items() if not getattr(t.annotations, "read_only_hint", True)]
         print(f"== {len(tools)} herramientas, {len(writers)} de escritura")
-        check(len(writers) == 15, "15 herramientas marcadas como no de solo lectura")
+        check(len(writers) == 18, "18 herramientas marcadas como no de solo lectura")
 
         print("== 1. nudos")
         nodes = [{"x": x, "y": y, "z": z} for z in (0.0, 3.0, 6.0) for x, y in PLAN]

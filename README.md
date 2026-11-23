@@ -119,6 +119,9 @@ Escritura (`writes.py`):
 | `robot_create_panel` | Crea un panel plano por su contorno, con espesor y modelo de cálculo existentes |
 | `robot_delete_elements` | Borra barras, nudos, paneles o casos y combinaciones |
 | `robot_delete_loads` | Borra cargas de un caso por su índice en `robot_list_loads` |
+| `robot_set_structural_type` | Convierte barras en columnas o vigas (objeto constructivo); `AUTO` decide por geometría: vertical = columna |
+| `robot_create_storeys` | Crea los pisos y asigna a cada uno sus columnas y las vigas de su nivel superior |
+| `robot_create_axis_grid` | Traza y activa una malla de ejes (p. ej. 1, 2, 3… en X y A, B, C… en Y); en Z, los pisos |
 | `robot_run_calculation` | Lanza el cálculo y espera |
 | `robot_save_project` | Guarda o «guarda como» |
 

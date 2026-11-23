@@ -1,4 +1,4 @@
-"""Prueba de las herramientas de combinaciones NEC, flechas, paneles, cuantías ACI y borrado.
+"""Prueba de combinaciones NEC, flechas, paneles, cuantías ACI, tipo estructural, pisos, ejes y borrado.
 
 Uso (con Robot CERRADO):  .venv\\Scripts\\python.exe tests\\design_test.py
 
@@ -108,6 +108,16 @@ async def main() -> int:  # noqa: C901
         check(column.get("rho_required") == 0.01 and column.get("ok"), f"columna 1 con la cuantía mínima: {column.get('rho_required')} ({column.get('governs')})")
         ok, out = await call(client, "robot_check_rc_members", {"cases": "1 999", "fc_mpa": 28, "fy_mpa": 420})
         check(not ok and "999" in str(out), "caso inexistente: rechazado")
+
+        print("== tipo estructural, pisos y ejes (no deben invalidar resultados)")
+        ok, out = await call(client, "robot_set_structural_type", {"selection": "1to16", "dry_run": False})
+        check(ok and out["to_set"] == {"COLUMN": 8, "BEAM": 8} and out["results_status_after"] == "AVAILABLE", f"AUTO: 8 columnas y 8 vigas, resultados vigentes: {out if not ok else out['results_status_after']}")
+        ok, out = await call(client, "robot_create_storeys", {"levels": [3, 6], "replace": True, "dry_run": False})
+        check(ok and [st["bars_count"] for st in out["storeys"]] == [8, 8] and out["results_status_after"] == "AVAILABLE", f"2 pisos de 8 barras, resultados vigentes: {out if not ok else out['results_status_after']}")
+        ok, out = await call(client, "robot_list_bars", {"storey": "Piso 2", "structural_type": "BEAM"})
+        check(ok and sorted(i["number"] for i in out["items"]) == [13, 14, 15, 16], "Piso 2: las vigas de cubierta 13-16")
+        ok, out = await call(client, "robot_create_axis_grid", {"x": [0, 5], "y": [0, 4], "dry_run": False})
+        check(ok and out["active"] and out["results_status_after"] == "AVAILABLE", f"malla de ejes activa, resultados vigentes: {out if not ok else out['grid']}")
 
         print("== panel nuevo y carga superficial")
         square = [{"x": x, "y": y, "z": 6.0} for x, y in ((0, 0), (5, 0), (5, 4), (0, 4))]
