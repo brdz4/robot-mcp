@@ -15,10 +15,11 @@ Probado con Robot 2026 (39.0.1) en español, Python 3.12, `mcp` 2.3.0 y `pythonn
 contra un pórtico de prueba y la copia de un edificio real.
 
 *English:* MCP server for Autodesk Robot Structural Analysis (Windows, COM API). It lets Claude
-read the open model and its results, run Ecuadorian seismic code checks (NEC-SE-DS), size
-reinforcement per ACI 318-19 and make guarded edits (every write is a dry run first). Status:
-in testing but working. Tool descriptions and messages are in Spanish. Apache-2.0 license.
-Contributions welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+read the open model and its results, run Ecuadorian (NEC-SE-DS) and Algerian (RPA 2024) seismic
+code checks, size reinforcement per ACI 318-19 (and BAEL 91 / CBA 93 for RPA 2024) and make
+guarded edits (every write is a dry run first). Status: in testing but working. Tool
+descriptions and messages are in Spanish (the RPA 2024 tools document their formulas in French).
+Apache-2.0 license. Contributions welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Instalación
 
@@ -102,6 +103,46 @@ R, los factores de escala de cada caso sísmico y el cortante estático (o su co
 datos del proyecto que aporta quien llama: las herramientas aplican la fórmula, no eligen esos
 valores. No sustituyen la revisión de un ingeniero responsable.
 
+Verificaciones RPA 2024 (Argelia, `rpa24.py`; solo lectura salvo la creación de combinaciones):
+
+| Herramienta | Qué hace |
+|---|---|
+| `robot_rpa24_spectrum` | Espectro elástico y de cálculo horizontal o vertical (§3.3.3), cálculo puro sin COM, para contrastarlo con el espectro cargado en Robot |
+| `robot_create_rpa24_combinations` | Genera las combinaciones `G + ψQ + E1/E2` del §5.2 (y `E3/E4/E5` con componente vertical, y `G + ψQ ± 1.4·E1/E2` para cimentaciones) |
+| `robot_check_rpa24_base_shear` | Cortante basal estático `V = λ·Sad(To)/g·W` y contraste `Vdyn ≥ 0.80·V` (§4.2/§4.3.5) |
+| `robot_check_rpa24_drifts` | Derivas de no colapso `Δd = (R/QF)·Δe` y limitación de daños `δ = 0.5·(R/QF)·Δe` (§5.10) |
+| `robot_check_rpa24_irregularities` | Criterios de regularidad en planta y elevación (§3.7) y estimación del factor de calidad QF (§3.8) |
+| `robot_check_rpa24_p_delta` | Índice de estabilidad `θk = Pk·Δk/(Vk·hk)` por piso (§5.9) |
+| `robot_check_rpa24_rc_members` | Armado longitudinal y transversal de vigas y columnas según BAEL 91 / CBA 93, con las disposiciones RPA 2024 §7.4 |
+
+Datos normativos que aporta quien llama (la herramienta no los inventa):
+
+- zona I–VI → `A = 0.07, 0.10, 0.15, 0.20, 0.25, 0.30` (Tabla 3.3);
+- grupo de importancia 1A/1B/2/3 → `I = 1.4, 1.2, 1.0, 0.8` (Tabla 3.4);
+- sitio S1–S4 → `S`, `T1`, `T2`, `T3` (Tablas 3.8 y 3.9; tipo 1 en zonas IV-VI, tipo 2 en I-III);
+- `R` (Tabla 3.18), `QF` (Tabla 3.19) y `ψ` (Tabla 4.2);
+- `fc28`, `fe` y el recubrimiento para el armado.
+
+Reglas de uso:
+
+1. Las combinaciones se crean con tipo `ALS` y naturaleza `SEISMIC`; máximo 60 por llamada.
+2. Cortante basal, derivas y P-Δ usan los **casos espectrales**; el armado usa las
+   **combinaciones** últimas o accidentales, porque un caso espectral suelto no tiene signo.
+3. `gravity_case` debe ser `G + ψQ` sin mayorar (peso sísmico y P-Δ), nunca una combinación
+   mayorada.
+4. `scale` de cada caso sísmico: 1.0 si el espectro cargado ya está reducido al nivel de cálculo;
+   si es elástico, el factor que lo lleva a ese nivel. Un `scale` incorrecto falsea el cortante
+   basal y las derivas.
+5. `robot_create_rpa24_combinations` sigue la regla general de escritura: primero `dry_run=true`,
+   se muestra el plan y se aplica con `dry_run=false`.
+
+El módulo aplica las fórmulas del RPA 2024 a los resultados que Robot ya calculó; no crea casos
+modales ni espectrales. No calcula el centro de rigidez ni los radios de torsión (se aportan o se
+estiman con el modelo 3D), no hace diseño por capacidad ni confinamiento detallado, y no sustituye
+la revisión de un ingeniero. Las fórmulas y la interpretación de cada comprobación están en los
+docstrings del módulo. La guía de validación paso a paso sobre un modelo real está en
+[`docs/GUIDE-RPA2024.md`](docs/GUIDE-RPA2024.md) (en francés).
+
 Escritura (`writes.py`):
 
 | Herramienta | Qué hace |
@@ -116,6 +157,7 @@ Escritura (`writes.py`):
 | `robot_add_loads` | Añade peso propio, fuerzas en nudos, cargas repartidas en barras o cargas superficiales en paneles |
 | `robot_create_combinations` | Crea combinaciones manuales con sus factores |
 | `robot_create_nec_combinations` | Genera y crea las combinaciones LRFD de la NEC-SE-CG §3.4.3 (y D+L de servicio) a partir de los casos D, L, Lr, W, Ex y Ey; `seismic_scale_x/y` aplica la escala del espectro cuando va en las combinaciones (p. ej. I·g/R) |
+| `robot_create_rpa24_combinations` | Genera y crea las combinaciones sísmicas del RPA 2024 §5.2 a partir de los casos G, Q, Ex, Ey (y Ez); ver la sección RPA 2024 |
 | `robot_create_panel` | Crea un panel plano por su contorno, con espesor y modelo de cálculo existentes |
 | `robot_delete_elements` | Borra barras, nudos, paneles o casos y combinaciones |
 | `robot_delete_loads` | Borra cargas de un caso por su índice en `robot_list_loads` |
@@ -133,9 +175,9 @@ Reglas de toda escritura:
    incoherente: no borra nudos que usan barras, casos que usa una combinación que se queda, ni
    las cargas que Robot genera al repartir paneles.
 
-No incluye: casos modales o espectrales (el espectro se define en Robot), espesores ni
-modelos de cálculo de panel nuevos, ni secciones que no sean rectangulares de hormigón. Eso se
-hace en Robot.
+No incluye: casos modales o espectrales (el espectro se define en Robot; `robot_rpa24_spectrum`
+solo lo calcula para contrastarlo), espesores ni modelos de cálculo de panel nuevos, ni secciones
+que no sean rectangulares de hormigón. Eso se hace en Robot.
 
 Unidades: m, cm, cm², cm⁴, MPa, kN/m³; resultados y cargas en kN, kN/m, kN·m, mm, rad y t.
 Las listas largas están paginadas (`limit`, `offset`).
@@ -146,7 +188,7 @@ Las listas largas están paginadas (`limit`, `offset`).
 |---|---|
 | `ROBOT_INTEROP_DLL` | Ruta de `Interop.RobotOM.dll` si no está en la instalación estándar |
 | `ROBOT_MCP_AUTOSTART=1` | El servidor arranca Robot si no está abierto (por defecto no lo hace) |
-| `ROBOT_MCP_READ_ONLY=1` | No registra las herramientas de escritura, cálculo ni guardado (quedan 26) |
+| `ROBOT_MCP_READ_ONLY=1` | No registra las herramientas de escritura, cálculo ni guardado (quedan 32) |
 | `ROBOT_MCP_TIMEOUT` | Segundos de espera por llamada (120) |
 | `ROBOT_MCP_STARTUP_GRACE` | Segundos que debe llevar abierto Robot antes de conectar (40) |
 
@@ -320,9 +362,11 @@ valían; si se quiere repetir, hay que generar preguntas nuevas sobre el estado 
   cálculo». No bloquea, pero queda abierta.
 - **Sin verificar:** área de paneles (`CalcArea` devolvió 0 en la prueba, por eso no se expone);
   la red de seguridad del arranque y la reparación del modo no interactivo tras un fallo, que no
-  llegaron a dispararse; un cálculo que falle o tarde mucho; y la escritura sobre un modelo
+  llegaron a dispararse; un cálculo que falle o tarde mucho; la escritura sobre un modelo
   grande (crear barras recorre todas las existentes, ~4 ms por barra). La escritura solo se ha
-  probado sobre el pórtico de prueba, nunca sobre un modelo real.
+  probado sobre el pórtico de prueba, nunca sobre un modelo real. De RPA 2024 se han validado sin
+  Robot el espectro y la generación de combinaciones, y las fórmulas BAEL contra cálculos a mano;
+  los seis controles que leen el modelo aún no se han ejercitado sobre un modelo real.
 
 ## Siguientes fases
 
