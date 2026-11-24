@@ -288,7 +288,8 @@ valían; si se quiere repetir, hay que generar preguntas nuevas sobre el estado 
   `Nodes.GetConnectedBars` devuelven vacío, así que los duplicados se detectan recorriendo las
   barras. Toda validación está en `writes.py`, antes de escribir.
 - **Qué invalida resultados.** Nudos, barras, secciones o apoyos en uso, casos y cargas dejan el
-  estado en `OUT_OF_DATE`. Las combinaciones y las etiquetas sin usar no. Tras calcular, Robot
+  estado en `OUT_OF_DATE`; también el tipo estructural, los pisos y hasta una malla de ejes,
+  aunque no cambien el análisis. Las combinaciones y las etiquetas sin usar no. Tras calcular, Robot
   congela los resultados (`ResultsFreeze`), pero una escritura no interactiva los descongela sola.
 - **Masa de piso.** `Results.Storeys.Values(piso, caso).Mass` depende del caso cuando el modelo
   no tiene masas dinámicas: en el pórtico de prueba da la masa del peso propio para ese caso y

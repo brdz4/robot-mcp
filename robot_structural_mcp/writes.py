@@ -1215,8 +1215,9 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
         al último piso; las que están en el nivel base o por debajo, al primero). Las barras por
         encima del último nivel quedan sin piso y se informan. La asignación es fija (no
         automática), así que se repite esta herramienta si cambia la geometría. Los paneles no se
-        asignan. Devuelve {dry_run, applied, …, existing, storeys:[{name, bottom_m, top_m,
-        height_m, bars_count}], unassigned_bars, next_step? | results_status_after}.
+        asignan. Robot marca los resultados como no vigentes al cambiar los pisos. Devuelve
+        {dry_run, applied, …, existing, storeys:[{name, bottom_m, top_m, height_m, bars_count}],
+        unassigned_bars, next_step? | results_status_after}.
         """
         names_in = names or [f"Piso {i}" for i in range(1, len(levels) + 1)]
         if len(names_in) != len(levels):
@@ -1275,7 +1276,7 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
                     raise ToolError(f"Robot tiene {manager.Count} pisos en vez de {len(names_in)}; revísalo.")
                 return {}
 
-            return _execute(s, dry_run=dry_run, discard_results=discard_results, plan=plan, apply=apply, affects_results=False)
+            return _execute(s, dry_run=dry_run, discard_results=discard_results, plan=plan, apply=apply)
 
         return await on_robot(work)
 
@@ -1288,11 +1289,12 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
         y_labels: Annotated[Literal["numbers", "letters"], Field(description="Rótulos de los ejes en Y.")] = "letters",
         replace: Annotated[bool, Field(description="true = sustituir una malla que ya tenga ese nombre.")] = False,
         dry_run: DryRun = True,
+        discard_results: DiscardResults = False,
     ) -> dict[str, Any]:
         """Traza una malla cartesiana de ejes (líneas de construcción) y la activa.
 
-        En Z usa los niveles de los pisos (robot_create_storeys). Los ejes no cambian el análisis.
-        Devuelve {dry_run, applied, …, grid:{name, x:[{label, position_m}], y:[…]}, replaces,
+        En Z usa los niveles de los pisos (robot_create_storeys). Los ejes no cambian el análisis,
+        pero Robot marca igualmente los resultados como no vigentes. Devuelve {dry_run, applied, …, grid:{name, x:[{label, position_m}], y:[…]}, replaces,
         next_step?}.
         """
         for label, values in (("x", x), ("y", y)):
@@ -1342,7 +1344,7 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
                         raise ToolError(f"Robot guardó los ejes en {axis.upper()} distintos de lo pedido: {read}.")
                 return {"active": bool(manager.IsActive(index))}
 
-            return _execute(s, dry_run=dry_run, discard_results=False, plan=plan, apply=apply, affects_results=False)
+            return _execute(s, dry_run=dry_run, discard_results=discard_results, plan=plan, apply=apply)
 
         return await on_robot(work)
 
@@ -1354,12 +1356,13 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
             Field(description="COLUMN, BEAM, o AUTO = por geometría: vertical, columna; el resto (horizontal o inclinada), viga."),
         ] = "AUTO",
         dry_run: DryRun = True,
+        discard_results: DiscardResults = False,
     ) -> dict[str, Any]:
         """Asigna el tipo estructural (objeto constructivo) de las barras: columna o viga.
 
         Las barras creadas por la API quedan como barra genérica; con el tipo, Robot las trata como
         columnas o vigas y los filtros structural_type de este servidor las encuentran. No cambia el
-        análisis. Devuelve {dry_run, applied, …, bars_count, not_found, current:{tipo: n},
+        análisis, pero Robot marca los resultados como no vigentes si alguna barra cambia. Devuelve {dry_run, applied, …, bars_count, not_found, current:{tipo: n},
         to_set:{COLUMN: n, BEAM: n}, bars_changing, next_step?}.
         """
 
@@ -1385,6 +1388,8 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
             plan = {"bars_count": count, "not_found": not_found, "current": current, "to_set": to_set, "bars_changing": changing}
 
             def apply() -> dict[str, Any]:
+                if not changing:
+                    return {}
                 for kind in to_set:
                     group = s.structure.Selections.Create(om.IRobotObjectType.I_OT_BAR)
                     for number, t in target.items():
@@ -1396,6 +1401,6 @@ def register(mcp: MCPServer) -> None:  # noqa: C901 - un registro por herramient
                     raise ToolError(f"Robot no cambió el tipo de {len(wrong)} barras (p. ej. {wrong[:5]}); revísalo en Robot.")
                 return {}
 
-            return _execute(s, dry_run=dry_run, discard_results=False, plan=plan, apply=apply, affects_results=False)
+            return _execute(s, dry_run=dry_run, discard_results=discard_results, plan=plan, apply=apply, affects_results=changing > 0)
 
         return await on_robot(work)
